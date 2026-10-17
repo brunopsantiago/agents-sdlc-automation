@@ -4,6 +4,11 @@
 name: QA Agent — Geração BDD + Playwright
 
 on:
+  # Dispara automaticamente a cada push na branch develop
+  push:
+    branches:
+      - develop
+      
   # Trigger manual com parâmetros
   workflow_dispatch:
     inputs:
