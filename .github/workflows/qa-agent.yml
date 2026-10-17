@@ -1,0 +1,102 @@
+# .github/workflows/qa-agent.yml
+# Pipeline CI/CD do QA Agent
+
+name: QA Agent — Geração BDD + Playwright
+
+on:
+  # Trigger manual com parâmetros
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Modo de execução'
+        required: true
+        default: 'full'
+        type: choice
+        options: [full, bdd, playwright]
+      sprint_name:
+        description: 'Nome do Sprint (deixe vazio para sprint ativo)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry Run (não publica no Azure)'
+        required: false
+        default: false
+        type: boolean
+
+  # Trigger por schedule (toda segunda de manhã)
+  schedule:
+    - cron: '0 8 * * 1'
+
+jobs:
+  qa-agent:
+    name: Executar QA Agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar browsers Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Executar QA Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AZURE_ORG: ${{ secrets.AZURE_ORG }}
+          AZURE_PROJECT: ${{ secrets.AZURE_PROJECT }}
+          AZURE_PAT: ${{ secrets.AZURE_PAT }}
+          REGRESSION_PLAN_ID: ${{ vars.REGRESSION_PLAN_ID }}
+          SPRINT_NAME: ${{ github.event.inputs.sprint_name }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          OUTPUT_DIR: ./output
+        run: |
+          npm start -- --mode=${{ github.event.inputs.mode || 'full' }}
+
+      - name: Upload artefatos gerados
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-agent-output-${{ github.run_number }}
+          path: output/
+          retention-days: 30
+
+      - name: Criar Pull Request com specs gerados
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            feat(qa): specs Playwright gerados para sprint ${{ github.event.inputs.sprint_name || 'ativo' }}
+
+            Gerado automaticamente pelo QA Agent em ${{ github.run_id }}
+          branch: qa-agent/generated-specs-${{ github.run_number }}
+          title: |
+            🤖 [QA Agent] Specs Playwright — Sprint ${{ github.event.inputs.sprint_name || 'ativo' }}
+          body: |
+            ## Specs gerados automaticamente
+
+            Este PR foi criado pelo QA Agent com base nos PBIs do sprint.
+
+            ### O que foi gerado
+            - Cenários BDD (`.feature`)
+            - Scripts Playwright (`.spec.ts`)
+            - Page Objects
+
+            ### Próximos passos
+            1. Revisar os cenários gerados
+            2. Ajustar seletores no Page Object conforme o HTML real
+            3. Executar localmente: `npx playwright test`
+            4. Aprovar e mergear
+
+            > **Gerado por:** QA Agent (Claude claude-sonnet-4 + Azure DevOps)
+            > **Run:** ${{ github.run_id }}
+          labels: qa-agent,automated

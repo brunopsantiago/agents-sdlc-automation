@@ -1,0 +1,23 @@
+{
+  "name": "qa-agent-azure-claude",
+  "version": "1.0.0",
+  "description": "Agentes de QA: Azure DevOps + Claude AI + Playwright",
+  "scripts": {
+    "start": "ts-node src/orchestrator.ts",
+    "start:bdd": "ts-node src/orchestrator.ts --mode bdd",
+    "start:playwright": "ts-node src/orchestrator.ts --mode playwright",
+    "test": "playwright test",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}
